@@ -33,9 +33,9 @@ import static com.google.bitcoin.core.Utils.*;
 /**
  * <p>Methods to serialize and de-serialize messages to the Bitcoin network format as defined in
  * <a href="https://en.bitcoin.it/wiki/Protocol_specification">the protocol specification</a>.</p>
- *
+ * <p/>
  * <p>To be able to serialize and deserialize new Message subclasses the following criteria needs to be met.</p>
- *
+ * <p/>
  * <ul>
  * <li>The proper Class instance needs to be mapped to its message name in the names variable below</li>
  * <li>There needs to be a constructor matching: NetworkParameters params, byte[] payload</li>
@@ -70,12 +70,13 @@ public class BitcoinSerializer {
         names.put(FilteredBlock.class, "merkleblock");
         names.put(NotFoundMessage.class, "notfound");
         names.put(MemoryPoolMessage.class, "mempool");
+        names.put(RejectMessage.class, "reject");
     }
 
     /**
      * Constructs a BitcoinSerializer with the given behavior.
      *
-     * @param params           networkParams used to create Messages instances and termining packetMagic
+     * @param params networkParams used to create Messages instances and termining packetMagic
      */
     public BitcoinSerializer(NetworkParameters params) {
         this(params, false, false);
@@ -84,9 +85,9 @@ public class BitcoinSerializer {
     /**
      * Constructs a BitcoinSerializer with the given behavior.
      *
-     * @param params           networkParams used to create Messages instances and termining packetMagic
-     * @param parseLazy        deserialize messages in lazy mode.
-     * @param parseRetain      retain the backing byte array of a message for fast reserialization.
+     * @param params      networkParams used to create Messages instances and termining packetMagic
+     * @param parseLazy   deserialize messages in lazy mode.
+     * @param parseRetain retain the backing byte array of a message for fast reserialization.
      */
     public BitcoinSerializer(NetworkParameters params, boolean parseLazy, boolean parseRetain) {
         this.params = params;
@@ -231,6 +232,8 @@ public class BitcoinSerializer {
             return new NotFoundMessage(params, payloadBytes);
         } else if (command.equals("mempool")) {
             return new MemoryPoolMessage();
+        } else if (command.equals("reject")) {
+            return new RejectMessage(params, payloadBytes);
         } else {
             log.warn("No support for deserializing message with name {}", command);
             return new UnknownMessage(params, command, payloadBytes);
@@ -246,7 +249,7 @@ public class BitcoinSerializer {
             byte b = in.get();
             // We're looking for a run of bytes that is the same as the packet magic but we want to ignore partial
             // magics that aren't complete. So we keep track of where we're up to with magicCursor.
-            byte expectedByte = (byte)(0xFF & params.getPacketMagic() >>> (magicCursor * 8));
+            byte expectedByte = (byte) (0xFF & params.getPacketMagic() >>> (magicCursor * 8));
             if (b == expectedByte) {
                 magicCursor--;
                 if (magicCursor < 0) {
@@ -277,7 +280,9 @@ public class BitcoinSerializer {
 
 
     public static class BitcoinPacketHeader {
-        /** The largest number of bytes that a header can represent */
+        /**
+         * The largest number of bytes that a header can represent
+         */
         public static final int HEADER_LENGTH = COMMAND_LEN + 4 + 4;
 
         public final byte[] header;

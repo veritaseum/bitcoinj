@@ -4,7 +4,7 @@
 
   <groupId>com.google</groupId>
   <artifactId>bitcoinj-parent</artifactId>
-  <version>0.11.3</version>
+  <version>0.11.3r</version>
   <packaging>pom</packaging>
 
   <modules>
@@ -24,6 +24,14 @@
     <developerConnection>scm:git:https://code.google.com/p/bitcoinj/</developerConnection>
     <url>http://code.google.com/p/bitcoinj/source/browse</url>
   </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>dropbox</id>
+            <name>dropbox</name>
+            <url>file:///Users/dwuziu/Dropbox/Public/mvn-repository</url>
+        </repository>
+    </distributionManagement>
 
   <name>bitcoinj Parent</name>
   <description>Provides the common configuration for the BitCoinJ modules</description>
