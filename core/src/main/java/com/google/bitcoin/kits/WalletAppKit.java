@@ -208,7 +208,7 @@ public class WalletAppKit extends AbstractIdleService {
                     addWalletExtensions(); // All extensions must be present before we deserialize
                     new WalletProtobufSerializer().readWallet(WalletProtobufSerializer.parseToProto(walletStream), vWallet);
                     if (shouldReplayWallet)
-                        vWallet.clearTransactions(0);
+                        vWallet.reset();
                 } finally {
                     walletStream.close();
                 }
