@@ -4,7 +4,7 @@
 
   <groupId>org.bitcoinj</groupId>
   <artifactId>bitcoinj-parent</artifactId>
-  <version>0.12.2</version>
+  <version>0.12.2-uc</version>
   <packaging>pom</packaging>
 
   <modules>
@@ -24,6 +24,14 @@
     <developerConnection>scm:git:https://github.com/bitcoinj/bitcoinj</developerConnection>
     <url>scm:git:https://github.com/bitcoinj/bitcoinj</url>
   </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>dropbox</id>
+            <name>dropbox</name>
+            <url>file:///Users/dwuziu/Dropbox/Public/mvn-repository</url>
+        </repository>
+    </distributionManagement>
 
   <name>bitcoinj Parent</name>
   <description>Provides the common configuration for the BitCoinJ modules</description>
@@ -50,16 +58,16 @@
     </mailingList>
   </mailingLists>
 
-  <distributionManagement>
-    <snapshotRepository>
-      <id>ossrh</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </snapshotRepository>
-    <repository>
-      <id>ossrh</id>
-      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-    </repository>
-  </distributionManagement>
+  <!--<distributionManagement>-->
+    <!--<snapshotRepository>-->
+      <!--<id>ossrh</id>-->
+      <!--<url>https://oss.sonatype.org/content/repositories/snapshots</url>-->
+    <!--</snapshotRepository>-->
+    <!--<repository>-->
+      <!--<id>ossrh</id>-->
+      <!--<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>-->
+    <!--</repository>-->
+  <!--</distributionManagement>-->
 
   <!-- Common build plugin configuration -->
   <build>
@@ -76,17 +84,17 @@
         </configuration>
       </plugin>
 
-      <plugin>
-        <groupId>org.sonatype.plugins</groupId>
-        <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.3</version>
-        <extensions>true</extensions>
-        <configuration>
-            <serverId>ossrh</serverId>
-            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-            <autoReleaseAfterClose>false</autoReleaseAfterClose>
-        </configuration>
-      </plugin>
+      <!--<plugin>-->
+        <!--<groupId>org.sonatype.plugins</groupId>-->
+        <!--<artifactId>nexus-staging-maven-plugin</artifactId>-->
+        <!--<version>1.6.3</version>-->
+        <!--<extensions>true</extensions>-->
+        <!--<configuration>-->
+            <!--<serverId>ossrh</serverId>-->
+            <!--<nexusUrl>https://oss.sonatype.org/</nexusUrl>-->
+            <!--<autoReleaseAfterClose>false</autoReleaseAfterClose>-->
+        <!--</configuration>-->
+      <!--</plugin>-->
     </plugins>
     <pluginManagement>
       <plugins>
