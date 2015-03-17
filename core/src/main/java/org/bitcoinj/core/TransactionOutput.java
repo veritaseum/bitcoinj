@@ -19,12 +19,11 @@ package org.bitcoinj.core;
 
 import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
-
+import org.bitcoinj.script.ScriptChunk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -57,7 +56,8 @@ public class TransactionOutput extends ChildMessage implements Serializable {
     // was owned by us and was sent to somebody else. If false and spentBy is set it means this output was owned by
     // us and used in one of our own transactions (eg, because it is a change output).
     private boolean availableForSpending;
-    @Nullable private TransactionInput spentBy;
+    @Nullable
+    private TransactionInput spentBy;
 
     private transient int scriptLen;
 
@@ -74,13 +74,13 @@ public class TransactionOutput extends ChildMessage implements Serializable {
     /**
      * Deserializes a transaction output message. This is usually part of a transaction message.
      *
-     * @param params NetworkParameters object.
-     * @param payload Bitcoin protocol formatted byte array containing message content.
-     * @param offset The location of the first payload byte within the array.
-     * @param parseLazy Whether to perform a full parse immediately or delay until a read is requested.
-     * @param parseRetain Whether to retain the backing byte array for quick reserialization.  
-     * If true and the backing byte array is invalidated due to modification of a field then 
-     * the cached bytes may be repopulated and retained if the message is serialized again in the future.
+     * @param params      NetworkParameters object.
+     * @param payload     Bitcoin protocol formatted byte array containing message content.
+     * @param offset      The location of the first payload byte within the array.
+     * @param parseLazy   Whether to perform a full parse immediately or delay until a read is requested.
+     * @param parseRetain Whether to retain the backing byte array for quick reserialization.
+     *                    If true and the backing byte array is invalidated due to modification of a field then
+     *                    the cached bytes may be repopulated and retained if the message is serialized again in the future.
      * @throws ProtocolException
      */
     public TransactionOutput(NetworkParameters params, @Nullable Transaction parent, byte[] payload, int offset,
@@ -139,12 +139,10 @@ public class TransactionOutput extends ChildMessage implements Serializable {
      * P2PKH</a>, return the address of the receiver, i.e., a base58 encoded hash of the public key in the script. </p>
      *
      * @param networkParameters needed to specify an address
-     * @return null, if the output script is not the form <i>OP_DUP OP_HASH160 <PubkeyHash> OP_EQUALVERIFY OP_CHECKSIG</i>,
-     * i.e., not P2PKH
      * @return an address made out of the public key hash
      */
     @Nullable
-    public Address getAddressFromP2PKHScript(NetworkParameters networkParameters) throws ScriptException{
+    public Address getAddressFromP2PKHScript(NetworkParameters networkParameters) throws ScriptException {
         if (getScriptPubKey().isSentToAddress())
             return getScriptPubKey().getToAddress(networkParameters);
 
@@ -155,16 +153,15 @@ public class TransactionOutput extends ChildMessage implements Serializable {
      * <p>If the output script pays to a redeem script, return the address of the redeem script as described by,
      * i.e., a base58 encoding of [one-byte version][20-byte hash][4-byte checksum], where the 20-byte hash refers to
      * the redeem script.</p>
-     *
+     * <p/>
      * <p>P2SH is described by <a href="https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki">BIP 16</a> and
      * <a href="https://bitcoin.org/en/developer-guide#p2sh-scripts">documented in the Bitcoin Developer Guide</a>.</p>
      *
      * @param networkParameters needed to specify an address
-     * @return null if the output script does not pay to a script hash
      * @return an address that belongs to the redeem script
      */
     @Nullable
-    public Address getAddressFromP2SH(NetworkParameters networkParameters) throws ScriptException{
+    public Address getAddressFromP2SH(NetworkParameters networkParameters) throws ScriptException {
         if (getScriptPubKey().isPayToScriptHash())
             return getScriptPubKey().getToAddress(networkParameters);
 
@@ -233,7 +230,7 @@ public class TransactionOutput extends ChildMessage implements Serializable {
      * consume more than a third of its value in fees is not something the Bitcoin system wants to deal with right now,
      * so we call them "dust outputs" and they're made non standard. The choice of one third is somewhat arbitrary and
      * may change in future.</p>
-     *
+     * <p/>
      * <p>You probably should use {@link org.bitcoinj.core.TransactionOutput#getMinNonDustValue()} which uses
      * a safe fee-per-kb by default.</p>
      *
@@ -263,6 +260,7 @@ public class TransactionOutput extends ChildMessage implements Serializable {
     /**
      * Sets this objects availableForSpending flag to false and the spentBy pointer to the given input.
      * If the input is null, it means this output was signed over to somebody else rather than one of our own keys.
+     *
      * @throws IllegalStateException if the transaction was already marked as spent.
      */
     public void markAsSpent(TransactionInput input) {
@@ -270,9 +268,9 @@ public class TransactionOutput extends ChildMessage implements Serializable {
         availableForSpending = false;
         spentBy = input;
         if (parent != null)
-            if (log.isDebugEnabled()) log.debug("Marked {}:{} as spent by {}", getParentTransaction().getHash(), getIndex(), input);
-        else
-            if (log.isDebugEnabled()) log.debug("Marked floating output as spent by {}", input);
+            if (log.isDebugEnabled())
+                log.debug("Marked {}:{} as spent by {}", getParentTransaction().getHash(), getIndex(), input);
+            else if (log.isDebugEnabled()) log.debug("Marked floating output as spent by {}", input);
     }
 
     /**
@@ -280,9 +278,9 @@ public class TransactionOutput extends ChildMessage implements Serializable {
      */
     public void markAsUnspent() {
         if (parent != null)
-            if (log.isDebugEnabled()) log.debug("Un-marked {}:{} as spent by {}", getParentTransaction().getHash(), getIndex(), spentBy);
-        else
-            if (log.isDebugEnabled()) log.debug("Un-marked floating output as spent by {}", spentBy);
+            if (log.isDebugEnabled())
+                log.debug("Un-marked {}:{} as spent by {}", getParentTransaction().getHash(), getIndex(), spentBy);
+            else if (log.isDebugEnabled()) log.debug("Un-marked floating output as spent by {}", spentBy);
         availableForSpending = true;
         spentBy = null;
     }
@@ -300,8 +298,9 @@ public class TransactionOutput extends ChildMessage implements Serializable {
 
     /**
      * The backing script bytes which can be turned into a Script object.
+     *
      * @return the scriptBytes
-    */
+     */
     public byte[] getScriptBytes() {
         maybeParse();
         return scriptBytes;
@@ -337,7 +336,8 @@ public class TransactionOutput extends ChildMessage implements Serializable {
             if (script.isSentToRawPubKey()) {
                 byte[] pubkey = script.getPubKey();
                 return transactionBag.isPubKeyMine(pubkey);
-            } if (script.isPayToScriptHash()) {
+            }
+            if (script.isPayToScriptHash()) {
                 return transactionBag.isPayToScriptHashMine(script.getPubKeyHash());
             } else {
                 byte[] pubkeyHash = script.getPubKeyHash();
@@ -345,6 +345,30 @@ public class TransactionOutput extends ChildMessage implements Serializable {
             }
         } catch (ScriptException e) {
             // Just means we didn't understand the output of this transaction: ignore it.
+            log.debug("Could not parse tx output script: {}", e.toString());
+            return false;
+        }
+    }
+
+    /**
+     * Returns true if the script contains a key known to the wallet. Currently we're interested only in this
+     *
+     * @param wallet
+     * @return
+     */
+    public boolean isInteresting(Wallet wallet) {
+        try {
+            Script script = getScriptPubKey();
+            if (script.isSentToMultiSig()) {
+                for (ScriptChunk chunk : script.getChunks()) {
+                    if (!chunk.isOpCode()) {
+                        ECKey key = wallet.findKeyFromPubKey(chunk.data);
+                        if (key != null) return true;
+                    }
+                }
+            }
+            return false;
+        } catch (ScriptException e) {
             log.debug("Could not parse tx output script: {}", e.toString());
             return false;
         }
@@ -408,7 +432,9 @@ public class TransactionOutput extends ChildMessage implements Serializable {
         return new TransactionOutPoint(params, getIndex(), getParentTransaction());
     }
 
-    /** Returns a copy of the output detached from its containing transaction, if need be. */
+    /**
+     * Returns a copy of the output detached from its containing transaction, if need be.
+     */
     public TransactionOutput duplicateDetached() {
         return new TransactionOutput(params, null, Coin.valueOf(value), org.spongycastle.util.Arrays.clone(scriptBytes));
     }

@@ -66,7 +66,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * You can extend the wallet format with additional fields specific to your application if you want, but make sure
  * to either put the extra data in the provided extension areas, or select tag numbers that are unlikely to be used
  * by anyone else.<p>
- * 
+ *
  * @author Miron Cuperman
  * @author Andreas Schildbach
  */
@@ -226,7 +226,7 @@ public class WalletProtobufSerializer {
     private static Protos.Transaction makeTxProto(WalletTransaction wtx) {
         Transaction tx = wtx.getTransaction();
         Protos.Transaction.Builder txBuilder = Protos.Transaction.newBuilder();
-        
+
         txBuilder.setPool(getProtoPool(wtx))
                  .setHash(hashToByteString(tx.getHash()))
                  .setVersion((int) tx.getVersion());
@@ -234,11 +234,11 @@ public class WalletProtobufSerializer {
         if (tx.getUpdateTime() != null) {
             txBuilder.setUpdatedAt(tx.getUpdateTime().getTime());
         }
-        
+
         if (tx.getLockTime() > 0) {
             txBuilder.setLockTime((int)tx.getLockTime());
         }
-        
+
         // Handle inputs.
         for (TransactionInput input : tx.getInputs()) {
             Protos.TransactionInput.Builder inputBuilder = Protos.TransactionInput.newBuilder()
@@ -251,7 +251,7 @@ public class WalletProtobufSerializer {
                 inputBuilder.setValue(input.getValue().value);
             txBuilder.addTransactionInput(inputBuilder);
         }
-        
+
         // Handle outputs.
         for (TransactionOutput output : tx.getOutputs()) {
             Protos.TransactionOutput.Builder outputBuilder = Protos.TransactionOutput.newBuilder()
@@ -266,7 +266,7 @@ public class WalletProtobufSerializer {
             }
             txBuilder.addTransactionOutput(outputBuilder);
         }
-        
+
         // Handle which blocks tx was seen in.
         final Map<Sha256Hash, Integer> appearsInHashes = tx.getAppearsInHashes();
         if (appearsInHashes != null) {
@@ -275,7 +275,7 @@ public class WalletProtobufSerializer {
                 txBuilder.addBlockRelativityOffsets(entry.getValue());
             }
         }
-        
+
         if (tx.hasConfidence()) {
             TransactionConfidence confidence = tx.getConfidence();
             Protos.TransactionConfidence.Builder confidenceBuilder = Protos.TransactionConfidence.newBuilder();
@@ -305,7 +305,7 @@ public class WalletProtobufSerializer {
 
         if (tx.getMemo() != null)
             txBuilder.setMemo(tx.getMemo());
-        
+
         return txBuilder.build();
     }
 
@@ -315,6 +315,7 @@ public class WalletProtobufSerializer {
             case SPENT: return Protos.Transaction.Pool.SPENT;
             case DEAD: return Protos.Transaction.Pool.DEAD;
             case PENDING: return Protos.Transaction.Pool.PENDING;
+            case INTERESTING: return Protos.Transaction.Pool.INTERESTING;
             default:
                 throw new RuntimeException("Unreachable");
         }
@@ -546,7 +547,7 @@ public class WalletProtobufSerializer {
         if (txProto.hasUpdatedAt()) {
             tx.setUpdateTime(new Date(txProto.getUpdatedAt()));
         }
-        
+
         for (Protos.TransactionOutput outputProto : txProto.getTransactionOutputList()) {
             Coin value = Coin.valueOf(outputProto.getValue());
             byte[] scriptBytes = outputProto.getScriptBytes().toByteArray();
@@ -629,6 +630,7 @@ public class WalletProtobufSerializer {
             case PENDING_INACTIVE:
                 pool = WalletTransaction.Pool.PENDING;
                 break;
+            case INTERESTING: pool = WalletTransaction.Pool.INTERESTING; break;
             default:
                 throw new UnreadableWalletException("Unknown transaction pool: " + txProto.getPool());
         }
@@ -647,7 +649,7 @@ public class WalletProtobufSerializer {
                 input.connect(output);
             }
         }
-        
+
         if (txProto.hasConfidence()) {
             Protos.TransactionConfidence confidenceProto = txProto.getConfidence();
             TransactionConfidence confidence = tx.getConfidence();
@@ -728,7 +730,7 @@ public class WalletProtobufSerializer {
 
     /**
      * Cheap test to see if input stream is a wallet. This checks for a magic value at the beginning of the stream.
-     * 
+     *
      * @param is
      *            input stream to test
      * @return true if input stream is a wallet

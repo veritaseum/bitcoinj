@@ -229,6 +229,7 @@ message Transaction {
     DEAD = 10; // Double-spent by a transaction in the best chain
     PENDING = 16; // Our transaction, not in any chain
     PENDING_INACTIVE = 18; // In non-best chain, our transaction
+    INTERESTING = 32;
   }
 
   // See Wallet.java for detailed description of pool semantics

@@ -29,10 +29,12 @@ public class WalletTransaction {
         SPENT, // spent in best chain
         DEAD, // double-spend in alt chain
         PENDING, // a pending tx we would like to go into the best chain
+        INTERESTING
     }
+
     private final Transaction transaction;
     private final Pool pool;
-    
+
     public WalletTransaction(Pool pool, Transaction transaction) {
         this.pool = checkNotNull(pool);
         this.transaction = transaction;
@@ -41,7 +43,7 @@ public class WalletTransaction {
     public Transaction getTransaction() {
         return transaction;
     }
-    
+
     public Pool getPool() {
         return pool;
     }
