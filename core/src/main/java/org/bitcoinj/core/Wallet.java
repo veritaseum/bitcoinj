@@ -52,7 +52,6 @@ import org.slf4j.LoggerFactory;
 import org.spongycastle.crypto.params.KeyParameter;
 
 import javax.annotation.Nullable;
-
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -61,7 +60,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static com.google.common.base.Preconditions.*;
 
@@ -88,14 +86,14 @@ import static com.google.common.base.Preconditions.*;
  * <p>A Wallet stores keys and a record of transactions that send and receive value from those keys. Using these,
  * it is able to create new transactions that spend the recorded transactions, and this is the fundamental operation
  * of the Bitcoin protocol.</p>
- *
+ * <p/>
  * <p>To learn more about this class, read <b><a href="https://bitcoinj.github.io/working-with-the-wallet">
- *     working with the wallet.</a></b></p>
- *
+ * working with the wallet.</a></b></p>
+ * <p/>
  * <p>To fill up a Wallet with transactions, you need to use it in combination with a {@link BlockChain} and various
  * other objects, see the <a href="https://bitcoinj.github.io/getting-started">Getting started</a> tutorial
  * on the website to learn more about how to set everything up.</p>
- *
+ * <p/>
  * <p>Wallets can be serialized using either Java serialization - this is not compatible across versions of bitcoinj,
  * or protocol buffer serialization. You need to save the wallet whenever it changes, there is an auto-save feature
  * that simplifies this for you although you're still responsible for manually triggering a save when your app is about
@@ -133,10 +131,14 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     //           to the user in the UI, etc). A transaction can leave dead and move into spent/unspent if there is a
     //           re-org to a chain that doesn't include the double spend.
 
-    @VisibleForTesting final Map<Sha256Hash, Transaction> pending;
-    @VisibleForTesting final Map<Sha256Hash, Transaction> unspent;
-    @VisibleForTesting final Map<Sha256Hash, Transaction> spent;
-    @VisibleForTesting final Map<Sha256Hash, Transaction> dead;
+    @VisibleForTesting
+    final Map<Sha256Hash, Transaction> pending;
+    @VisibleForTesting
+    final Map<Sha256Hash, Transaction> unspent;
+    @VisibleForTesting
+    final Map<Sha256Hash, Transaction> spent;
+    @VisibleForTesting
+    final Map<Sha256Hash, Transaction> dead;
 
     // All transactions together.
     protected final Map<Sha256Hash, Transaction> transactions;
@@ -157,14 +159,16 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     // The key chain group is not thread safe, and generally the whole hierarchy of objects should not be mutated
     // outside the wallet lock. So don't expose this object directly via any accessors!
-    @GuardedBy("keychainLock") protected KeyChainGroup keychain;
+    @GuardedBy("keychainLock")
+    protected KeyChainGroup keychain;
 
     // A list of scripts watched by this wallet.
     private Set<Script> watchedScripts;
 
     protected final NetworkParameters params;
 
-    @Nullable private Sha256Hash lastBlockSeenHash;
+    @Nullable
+    private Sha256Hash lastBlockSeenHash;
     private int lastBlockSeenHeight;
     private long lastBlockSeenTimeSecs;
 
@@ -210,7 +214,8 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     private RiskAnalysis.Analyzer riskAnalyzer = DefaultRiskAnalysis.FACTORY;
 
     // Objects that perform transaction signing. Applied subsequently one after another
-    @GuardedBy("lock") private List<TransactionSigner> signers;
+    @GuardedBy("lock")
+    private List<TransactionSigner> signers;
 
     /**
      * Creates a new, empty wallet with no keys and no transactions. If you want to restore a wallet from disk instead,
@@ -241,7 +246,10 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     }
 
     // TODO: When this class moves to the Wallet package, along with the protobuf serializer, then hide this.
-    /** For internal use only. */
+
+    /**
+     * For internal use only.
+     */
     public Wallet(NetworkParameters params, KeyChainGroup keyChainGroup) {
         this.params = checkNotNull(params);
         this.keychain = checkNotNull(keyChainGroup);
@@ -520,6 +528,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     /**
      * Removes the given key from the basicKeyChain. Be very careful with this - losing a private key <b>destroys the
      * money associated with it</b>.
+     *
      * @return Whether the key was removed or not.
      */
     public boolean removeKey(ECKey key) {
@@ -555,14 +564,16 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Returns the address used for change outputs. Note: this will probably go away in future. */
+    /**
+     * Returns the address used for change outputs. Note: this will probably go away in future.
+     */
     public Address getChangeAddress() {
         return currentAddress(KeyChain.KeyPurpose.CHANGE);
     }
 
     /**
      * <p>Deprecated alias for {@link #importKey(ECKey)}.</p>
-     *
+     * <p/>
      * <p><b>Replace with either {@link #freshReceiveKey()} if your call is addKey(new ECKey()), or with {@link #importKey(ECKey)}
      * which does the same thing this method used to, but with a better name.</b></p>
      */
@@ -573,7 +584,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     /**
      * <p>Imports the given ECKey to the wallet.</p>
-     *
+     * <p/>
      * <p>If the wallet is configured to auto save to a file, triggers a save immediately. Runs the onKeysAdded event
      * handler. If the key already exists in the wallet, does nothing and returns false.</p>
      */
@@ -581,7 +592,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         return importKeys(Lists.newArrayList(key)) == 1;
     }
 
-    /** Replace with {@link #importKeys(java.util.List)}, which does the same thing but with a better name. */
+    /**
+     * Replace with {@link #importKeys(java.util.List)}, which does the same thing but with a better name.
+     */
     @Deprecated
     public int addKeys(List<ECKey> keys) {
         return importKeys(keys);
@@ -615,7 +628,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
                 throw new IllegalArgumentException("Cannot import HD keys back into the wallet");
     }
 
-    /** Takes a list of keys and a password, then encrypts and imports them in one step using the current keycrypter. */
+    /**
+     * Takes a list of keys and a password, then encrypts and imports them in one step using the current keycrypter.
+     */
     public int importKeysAndEncrypt(final List<ECKey> keys, CharSequence password) {
         keychainLock.lock();
         try {
@@ -626,7 +641,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Takes a list of keys and an AES key, then encrypts and imports them in one step using the current keycrypter. */
+    /**
+     * Takes a list of keys and an AES key, then encrypts and imports them in one step using the current keycrypter.
+     */
     public int importKeysAndEncrypt(final List<ECKey> keys, KeyParameter aesKey) {
         keychainLock.lock();
         try {
@@ -672,7 +689,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** See {@link org.bitcoinj.wallet.DeterministicKeyChain#setLookaheadSize(int)} for more info on this. */
+    /**
+     * See {@link org.bitcoinj.wallet.DeterministicKeyChain#setLookaheadSize(int)} for more info on this.
+     */
     public void setKeychainLookaheadSize(int lookaheadSize) {
         keychainLock.lock();
         try {
@@ -682,7 +701,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** See {@link org.bitcoinj.wallet.DeterministicKeyChain#setLookaheadSize(int)} for more info on this. */
+    /**
+     * See {@link org.bitcoinj.wallet.DeterministicKeyChain#setLookaheadSize(int)} for more info on this.
+     */
     public int getKeychainLookaheadSize() {
         keychainLock.lock();
         try {
@@ -692,7 +713,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** See {@link org.bitcoinj.wallet.DeterministicKeyChain#setLookaheadThreshold(int)} for more info on this. */
+    /**
+     * See {@link org.bitcoinj.wallet.DeterministicKeyChain#setLookaheadThreshold(int)} for more info on this.
+     */
     public void setKeychainLookaheadThreshold(int num) {
         keychainLock.lock();
         try {
@@ -703,7 +726,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** See {@link org.bitcoinj.wallet.DeterministicKeyChain#setLookaheadThreshold(int)} for more info on this. */
+    /**
+     * See {@link org.bitcoinj.wallet.DeterministicKeyChain#setLookaheadThreshold(int)} for more info on this.
+     */
     public int getKeychainLookaheadThreshold() {
         keychainLock.lock();
         try {
@@ -830,7 +855,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Returns true if the given key is in the wallet, false otherwise. Currently an O(N) operation. */
+    /**
+     * Returns true if the given key is in the wallet, false otherwise. Currently an O(N) operation.
+     */
     public boolean hasKey(ECKey key) {
         keychainLock.lock();
         try {
@@ -840,13 +867,17 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isPubKeyHashMine(byte[] pubkeyHash) {
         return findKeyFromPubHash(pubkeyHash) != null;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isWatchedScript(Script script) {
         keychainLock.lock();
@@ -859,6 +890,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     /**
      * Locates a keypair from the basicKeyChain given the raw public key bytes.
+     *
      * @return ECKey or null if no such key was found.
      */
     @Override
@@ -872,7 +904,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isPubKeyMine(byte[] pubkey) {
         return findKeyFromPubKey(pubkey) != null;
@@ -893,7 +927,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isPayToScriptHashMine(byte[] payToScriptHash) {
         return findRedeemDataFromScriptHash(payToScriptHash) != null;
@@ -931,6 +967,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     /**
      * Returns the immutable seed for the current active HD chain.
+     *
      * @throws org.bitcoinj.core.ECKey.MissingPrivateKeyException if the seed is unavailable (watching wallet)
      */
     public DeterministicSeed getKeyChainSeed() {
@@ -980,7 +1017,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * {@link org.bitcoinj.crypto.KeyCrypterScrypt}.
      *
      * @param keyCrypter The KeyCrypter that specifies how to encrypt/ decrypt a key
-     * @param aesKey AES key to use (normally created using KeyCrypter#deriveKey and cached as it is time consuming to create from a password)
+     * @param aesKey     AES key to use (normally created using KeyCrypter#deriveKey and cached as it is time consuming to create from a password)
      * @throws KeyCrypterException Thrown if the wallet encryption fails. If so, the wallet state is unchanged.
      */
     public void encrypt(KeyCrypter keyCrypter, KeyParameter aesKey) {
@@ -995,6 +1032,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     /**
      * Decrypt the wallet with the wallets keyCrypter and password.
+     *
      * @throws KeyCrypterException Thrown if the wallet decryption fails. If so, the wallet state is unchanged.
      */
     public void decrypt(CharSequence password) {
@@ -1026,11 +1064,11 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     }
 
     /**
-     *  Check whether the password can decrypt the first key in the wallet.
-     *  This can be used to check the validity of an entered password.
+     * Check whether the password can decrypt the first key in the wallet.
+     * This can be used to check the validity of an entered password.
      *
-     *  @return boolean true if password supplied can decrypt the first private key in the wallet, false otherwise.
-     *  @throws IllegalStateException if the wallet is not encrypted.
+     * @return boolean true if password supplied can decrypt the first private key in the wallet, false otherwise.
+     * @throws IllegalStateException if the wallet is not encrypted.
      */
     public boolean checkPassword(CharSequence password) {
         keychainLock.lock();
@@ -1042,9 +1080,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     }
 
     /**
-     *  Check whether the AES key can decrypt the first encrypted key in the wallet.
+     * Check whether the AES key can decrypt the first encrypted key in the wallet.
      *
-     *  @return boolean true if AES key supplied can decrypt the first encrypted private key in the wallet, false otherwise.
+     * @return boolean true if AES key supplied can decrypt the first encrypted private key in the wallet, false otherwise.
      */
     public boolean checkAESKey(KeyParameter aesKey) {
         keychainLock.lock();
@@ -1071,7 +1109,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     /**
      * Get the type of encryption used for this wallet.
-     *
+     * <p/>
      * (This is a convenience method - the encryption type is actually stored in the keyCrypter).
      */
     public EncryptionType getEncryptionType() {
@@ -1087,7 +1125,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Returns true if the wallet is encrypted using any scheme, false if not. */
+    /**
+     * Returns true if the wallet is encrypted using any scheme, false if not.
+     */
     public boolean isEncrypted() {
         return getEncryptionType() != EncryptionType.UNENCRYPTED;
     }
@@ -1099,7 +1139,10 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     //region Serialization support
 
     // TODO: Make this package private once the classes finish moving around.
-    /** Internal use only. */
+
+    /**
+     * Internal use only.
+     */
     public List<Protos.Key> serializeKeychainToProtobuf() {
         keychainLock.lock();
         try {
@@ -1109,7 +1152,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Saves the wallet first to the given temp file, then renames to the dest file. */
+    /**
+     * Saves the wallet first to the given temp file, then renames to the dest file.
+     */
     public void saveToFile(File temp, File destFile) throws IOException {
         FileOutputStream stream = null;
         lock.lock();
@@ -1164,7 +1209,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * and won't trigger any event listeners. If you set this property to true, then all transactions will
      * be allowed in regardless of risk. Currently, the {@link DefaultRiskAnalysis} checks for non-finality of
      * transactions. You should not encounter these outside of special protocols.</p>
-     *
+     * <p/>
      * <p>Note that this property is not serialized. You have to set it each time a Wallet object is constructed,
      * even if it's loaded from a protocol buffer.</p>
      */
@@ -1219,7 +1264,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * <p>Sets up the wallet to auto-save itself to the given file, using temp files with atomic renames to ensure
      * consistency. After connecting to a file, you no longer need to save the wallet manually, it will do it
      * whenever necessary. Protocol buffer serialization will be used.</p>
-     *
+     * <p/>
      * <p>If delayTime is set, a background thread will be created and the wallet will only be saved to
      * disk every so many time units. If no changes have occurred for the given time period, nothing will be written.
      * In this way disk IO can be rate limited. It's a good idea to set this as otherwise the wallet can change very
@@ -1227,14 +1272,14 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * writes. Note that when a new key is added, that always results in an immediate save regardless of
      * delayTime. <b>You should still save the wallet manually when your program is about to shut down as the JVM
      * will not wait for the background thread.</b></p>
-     *
+     * <p/>
      * <p>An event listener can be provided. If a delay >0 was specified, it will be called on a background thread
      * with the wallet locked when an auto-save occurs. If delay is zero or you do something that always triggers
      * an immediate save, like adding a key, the event listener will be invoked on the calling threads.</p>
      *
-     * @param f The destination file to save to.
-     * @param delayTime How many time units to wait until saving the wallet on a background thread.
-     * @param timeUnit the unit of measurement for delayTime.
+     * @param f             The destination file to save to.
+     * @param delayTime     How many time units to wait until saving the wallet on a background thread.
+     * @param timeUnit      the unit of measurement for delayTime.
      * @param eventListener callback to be informed when the auto-save thread does things, or null
      */
     public WalletFiles autosaveToFile(File f, long delayTime, TimeUnit timeUnit,
@@ -1271,14 +1316,18 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Requests an asynchronous save on a background thread */
+    /**
+     * Requests an asynchronous save on a background thread
+     */
     protected void saveLater() {
         WalletFiles files = vFileManager;
         if (files != null)
             files.saveLater();
     }
 
-    /** If auto saving is enabled, do an immediate sync write to disk ignoring any delays. */
+    /**
+     * If auto saving is enabled, do an immediate sync write to disk ignoring any delays.
+     */
     protected void saveNow() {
         WalletFiles files = vFileManager;
         if (files != null) {
@@ -1307,7 +1356,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Returns the parameters this wallet was created with. */
+    /**
+     * Returns the parameters this wallet was created with.
+     */
     public NetworkParameters getParams() {
         return params;
     }
@@ -1328,7 +1379,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
             throw new UnreadableWalletException("Could not open file", e);
         }
     }
-    
+
     public boolean isConsistent() {
         lock.lock();
         try {
@@ -1405,16 +1456,16 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     /**
      * Called by the {@link BlockChain} when we receive a new filtered block that contains a transactions previously
      * received by a call to {@link #receivePending}.<p>
-     *
+     * <p/>
      * This is necessary for the internal book-keeping Wallet does. When a transaction is received that sends us
      * coins it is added to a pool so we can use it later to create spends. When a transaction is received that
      * consumes outputs they are marked as spent so they won't be used in future.<p>
-     *
+     * <p/>
      * A transaction that spends our own coins can be received either because a spend we created was accepted by the
      * network and thus made it into a block, or because our keys are being shared between multiple instances and
      * some other node spent the coins instead. We still have to know about that to avoid accidentally trying to
      * double spend.<p>
-     *
+     * <p/>
      * A transaction may be received multiple times if is included into blocks in parallel chains. The blockType
      * parameter describes whether the containing block is on the main/best chain or whether it's on a presently
      * inactive side chain. We must still record these transactions and the blocks they appear in because a future
@@ -1450,7 +1501,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * coins or be otherwise invalid. They are useful to inform the user about coins they can expect to receive soon,
      * and if you trust the sender of the transaction you can choose to assume they are in fact valid and will not
      * be double spent as an optimization.</p>
-     *
+     * <p/>
      * <p>This is the same as {@link Wallet#receivePending(Transaction, java.util.List)} but allows you to override the
      * {@link Wallet#isPendingTransactionRelevant(Transaction)} sanity-check to keep track of transactions that are not
      * spendable or spend our coins. This can be useful when you want to keep track of transaction confidence on
@@ -1485,7 +1536,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
             Coin valueSentFromMe = tx.getValueSentFromMe(this);
             if (log.isInfoEnabled()) {
                 log.info(String.format("Received a pending transaction %s that spends %s from our own wallet," +
-                        " and sends us %s", tx.getHashAsString(), valueSentFromMe.toFriendlyString(),
+                                " and sends us %s", tx.getHashAsString(), valueSentFromMe.toFriendlyString(),
                         valueSentToMe.toFriendlyString()));
             }
             if (tx.getConfidence().getSource().equals(TransactionConfidence.Source.UNKNOWN)) {
@@ -1532,7 +1583,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * coins or be otherwise invalid. They are useful to inform the user about coins they can expect to receive soon,
      * and if you trust the sender of the transaction you can choose to assume they are in fact valid and will not
      * be double spent as an optimization.</p>
-     *
+     * <p/>
      * <p>Before this method is called, {@link Wallet#isPendingTransactionRelevant(Transaction)} should have been
      * called to decide whether the wallet cares about the transaction - if it does, then this method expects the
      * transaction and any dependencies it has which are still in the memory pool.</p>
@@ -1574,7 +1625,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * <p>Returns true if the given transaction sends coins to any of our keys, or has inputs spending any of our outputs,
      * and also returns true if tx has inputs that are spending outputs which are
      * not ours but which are spent by pending transactions.</p>
-     *
+     * <p/>
      * <p>Note that if the tx has inputs containing one of our keys, but the connected transaction is not in the wallet,
      * it will not be considered relevant.</p>
      */
@@ -1583,8 +1634,8 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         lock.lock();
         try {
             return tx.getValueSentFromMe(this).signum() > 0 ||
-                   tx.getValueSentToMe(this).signum() > 0 ||
-                   checkForDoubleSpendAgainstPending(tx, false);
+                    tx.getValueSentToMe(this).signum() > 0 ||
+                    checkForDoubleSpendAgainstPending(tx, false);
         } finally {
             lock.unlock();
         }
@@ -1624,16 +1675,16 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     /**
      * Called by the {@link BlockChain} when we receive a new block that sends coins to one of our addresses or
      * spends coins from one of our addresses (note that a single transaction can do both).<p>
-     *
+     * <p/>
      * This is necessary for the internal book-keeping Wallet does. When a transaction is received that sends us
      * coins it is added to a pool so we can use it later to create spends. When a transaction is received that
      * consumes outputs they are marked as spent so they won't be used in future.<p>
-     *
+     * <p/>
      * A transaction that spends our own coins can be received either because a spend we created was accepted by the
      * network and thus made it into a block, or because our keys are being shared between multiple instances and
      * some other node spent the coins instead. We still have to know about that to avoid accidentally trying to
      * double spend.<p>
-     *
+     * <p/>
      * A transaction may be received multiple times if is included into blocks in parallel chains. The blockType
      * parameter describes whether the containing block is on the main/best chain or whether it's on a presently
      * inactive side chain. We must still record these transactions and the blocks they appear in because a future
@@ -1881,18 +1932,18 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * <p>Updates the wallet by checking if this TX spends any of our outputs, and marking them as spent if so. If
      * fromChain is true, also checks to see if any pending transaction spends outputs of this transaction and marks
      * the spent flags appropriately.</p>
-     *
+     * <p/>
      * <p>It can be called in two contexts. One is when we receive a transaction on the best chain but it wasn't pending,
      * this most commonly happens when we have a set of keys but the wallet transactions were wiped and we are catching
      * up with the block chain. It can also happen if a block includes a transaction we never saw at broadcast time.
      * If this tx double spends, it takes precedence over our pending transactions and the pending tx goes dead.</p>
-     *
+     * <p/>
      * <p>The other context it can be called is from {@link Wallet#receivePending(Transaction, java.util.List)},
      * ie we saw a tx be broadcast or one was submitted directly that spends our own coins. If this tx double spends
      * it does NOT take precedence because the winner will be resolved by the miners - we assume that our version will
      * win, if we are wrong then when a block appears the tx will go dead.</p>
      *
-     * @param tx The transaction which is being updated.
+     * @param tx        The transaction which is being updated.
      * @param fromChain If true, the tx appeared on the current best chain, if false it was pending.
      */
     private void updateForSpends(Transaction tx, boolean fromChain) throws VerificationException {
@@ -2090,12 +2141,12 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     /**
      * <p>Updates the wallet with the given transaction: puts it into the pending pool, sets the spent flags and runs
      * the onCoinsSent/onCoinsReceived event listener. Used in two situations:</p>
-     *
+     * <p/>
      * <ol>
-     *     <li>When we have just successfully transmitted the tx we created to the network.</li>
-     *     <li>When we receive a pending transaction that didn't appear in the chain yet, and we did not create it.</li>
+     * <li>When we have just successfully transmitted the tx we created to the network.</li>
+     * <li>When we receive a pending transaction that didn't appear in the chain yet, and we did not create it.</li>
      * </ol>
-     *
+     * <p/>
      * <p>Triggers an auto save.</p>
      */
     public void commitTx(Transaction tx) throws VerificationException {
@@ -2223,7 +2274,8 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     /**
      * Returns a set of all transactions in the wallet.
-     * @param includeDead     If true, transactions that were overridden by a double spend are included.
+     *
+     * @param includeDead If true, transactions that were overridden by a double spend are included.
      */
     public Set<Transaction> getTransactions(boolean includeDead) {
         lock.lock();
@@ -2285,20 +2337,20 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         checkState(lock.isHeldByCurrentThread());
         transactions.put(tx.getHash(), tx);
         switch (pool) {
-        case UNSPENT:
-            checkState(unspent.put(tx.getHash(), tx) == null);
-            break;
-        case SPENT:
-            checkState(spent.put(tx.getHash(), tx) == null);
-            break;
-        case PENDING:
-            checkState(pending.put(tx.getHash(), tx) == null);
-            break;
-        case DEAD:
-            checkState(dead.put(tx.getHash(), tx) == null);
-            break;
-        default:
-            throw new RuntimeException("Unknown wallet transaction type " + pool);
+            case UNSPENT:
+                checkState(unspent.put(tx.getHash(), tx) == null);
+                break;
+            case SPENT:
+                checkState(spent.put(tx.getHash(), tx) == null);
+                break;
+            case PENDING:
+                checkState(pending.put(tx.getHash(), tx) == null);
+                break;
+            case DEAD:
+                checkState(dead.put(tx.getHash(), tx) == null);
+                break;
+            default:
+                throw new RuntimeException("Unknown wallet transaction type " + pool);
         }
         // This is safe even if the listener has been added before, as TransactionConfidence ignores duplicate
         // registration requests. That makes the code in the wallet simpler.
@@ -2358,7 +2410,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Map<Sha256Hash, Transaction> getTransactionPool(Pool pool) {
         lock.lock();
@@ -2429,6 +2483,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     /**
      * Returns all the outputs that match addresses or scripts added via {@link #addWatchedAddress(Address)} or
      * {@link #addWatchedScripts(java.util.List)}.
+     *
      * @param excludeImmatureCoinbases Whether to ignore outputs that are unspendable due to being immature.
      */
     public List<TransactionOutput> getWatchedOutputs(boolean excludeImmatureCoinbases) {
@@ -2462,7 +2517,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         lock.lock();
         try {
             boolean dirty = false;
-            for (Iterator<Transaction> i = pending.values().iterator(); i.hasNext();) {
+            for (Iterator<Transaction> i = pending.values().iterator(); i.hasNext(); ) {
                 Transaction tx = i.next();
                 if (isTransactionRisky(tx, null) && !acceptRiskyTransactions) {
                     log.debug("Found risky transaction {} in wallet during cleanup.", tx.getHashAsString());
@@ -2539,10 +2594,11 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     /**
      * Formats the wallet as a human readable piece of text. Intended for debugging, the format is not meant to be
      * stable or human readable.
-     * @param includePrivateKeys Whether raw private key data should be included.
+     *
+     * @param includePrivateKeys  Whether raw private key data should be included.
      * @param includeTransactions Whether to print transaction data.
-     * @param includeExtensions Whether to print extension data.
-     * @param chain If set, will be used to estimate lock times for block timelocked transactions.
+     * @param includeExtensions   Whether to print extension data.
+     * @param chain               If set, will be used to estimate lock times for block timelocked transactions.
      */
     public String toString(boolean includePrivateKeys, boolean includeTransactions, boolean includeExtensions,
                            @Nullable AbstractBlockChain chain) {
@@ -2653,12 +2709,12 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * Returns the earliest creation time of keys or watched scripts in this wallet, in seconds since the epoch, ie the min
      * of {@link org.bitcoinj.core.ECKey#getCreationTimeSeconds()}. This can return zero if at least one key does
      * not have that data (was created before key timestamping was implemented). <p>
-     *
+     * <p/>
      * This method is most often used in conjunction with {@link PeerGroup#setFastCatchupTimeSecs(long)} in order to
      * optimize chain download for new users of wallet apps. Backwards compatibility notice: if you get zero from this
      * method, you can instead use the time of the first release of your software, as it's guaranteed no users will
      * have wallets pre-dating this time. <p>
-     *
+     * <p/>
      * If there are no keys in the wallet, the current time is returned.
      */
     @Override
@@ -2676,7 +2732,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Returns the hash of the last seen best-chain block, or null if the wallet is too old to store this data. */
+    /**
+     * Returns the hash of the last seen best-chain block, or null if the wallet is too old to store this data.
+     */
     @Nullable
     public Sha256Hash getLastBlockSeenHash() {
         lock.lock();
@@ -2799,7 +2857,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     /**
      * <p>It's possible to calculate a wallets balance from multiple points of view. This enum selects which
      * getBalance() should use.</p>
-     *
+     * <p/>
      * <p>Consider a real-world example: you buy a snack costing $5 but you only have a $10 bill. At the start you have
      * $10 viewed from every possible angle. After you order the snack you hand over your $10 bill. From the
      * perspective of your wallet you have zero dollars (AVAILABLE). But you know in a few seconds the shopkeeper
@@ -2865,7 +2923,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Returns the available balance, including any unspent balance at watched addresses */
+    /**
+     * Returns the available balance, including any unspent balance at watched addresses
+     */
     public Coin getWatchedBalance() {
         return getWatchedBalance(coinSelector);
     }
@@ -2891,14 +2951,16 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         public Coin value;
         public BalanceType type;
     }
-    @GuardedBy("lock") private List<BalanceFutureRequest> balanceFutureRequests = Lists.newLinkedList();
+
+    @GuardedBy("lock")
+    private List<BalanceFutureRequest> balanceFutureRequests = Lists.newLinkedList();
 
     /**
      * <p>Returns a future that will complete when the balance of the given type has becom equal or larger to the given
      * value. If the wallet already has a large enough balance the future is returned in a pre-completed state. Note
      * that this method is not blocking, if you want to actually wait immediately, you have to call .get() on
      * the result.</p>
-     *
+     * <p/>
      * <p>Also note that by the time the future completes, the wallet may have changed yet again if something else
      * is going on in parallel, so you should treat the returned balance as advisory and be prepared for sending
      * money to fail! Finally please be aware that any listeners on the future will run either on the calling thread
@@ -2953,7 +3015,8 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
             final Coin v = checkNotNull(val);
             // Don't run any user-provided future listeners with our lock held.
             Threading.USER_THREAD.execute(new Runnable() {
-                @Override public void run() {
+                @Override
+                public void run() {
                     req.future.set(v);
                 }
             });
@@ -2966,11 +3029,17 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     //region Creating and sending transactions
 
-    /** A SendResult is returned to you as part of sending coins to a recipient. */
+    /**
+     * A SendResult is returned to you as part of sending coins to a recipient.
+     */
     public static class SendResult {
-        /** The Bitcoin transaction message that moves the money. */
+        /**
+         * The Bitcoin transaction message that moves the money.
+         */
         public Transaction tx;
-        /** A future that will complete once the tx message has been successfully broadcast to the network. */
+        /**
+         * A future that will complete once the tx message has been successfully broadcast to the network.
+         */
         public ListenableFuture<Transaction> broadcastComplete;
     }
 
@@ -2978,7 +3047,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * Enumerates possible resolutions for missing signatures.
      */
     public enum MissingSigsMode {
-        /** Input script will have OP_0 instead of missing signatures */
+        /**
+         * Input script will have OP_0 instead of missing signatures
+         */
         USE_OP_ZERO,
         /**
          * Missing signatures will be replaced by dummy sigs. This is useful when you'd like to know the fee for
@@ -3003,11 +3074,11 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
          * <p>A transaction, probably incomplete, that describes the outline of what you want to do. This typically will
          * mean it has some outputs to the intended destinations, but no inputs or change address (and therefore no
          * fees) - the wallet will calculate all that for you and update tx later.</p>
-         *
+         * <p/>
          * <p>Be careful when adding outputs that you check the min output value
          * ({@link TransactionOutput#getMinNonDustValue(Coin)}) to avoid the whole transaction being rejected
          * because one output is dust.</p>
-         *
+         * <p/>
          * <p>If there are already inputs to the transaction, make sure their out point has a connected output,
          * otherwise their value will be added to fee.  Also ensure they are either signed or are spendable by a wallet
          * key, otherwise the behavior of {@link Wallet#completeTx(Wallet.SendRequest)} is undefined (likely
@@ -3035,11 +3106,11 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
          * is how mining is incentivized in later years of the Bitcoin system when inflation drops. It also provides
          * a way for people to prioritize their transactions over others and is used as a way to make denial of service
          * attacks expensive.</p>
-         *
+         * <p/>
          * <p>This is a constant fee (in satoshis) which will be added to the transaction. It is recommended that it be
          * at least {@link Transaction#REFERENCE_DEFAULT_MIN_TX_FEE} if it is set, as default reference clients will
          * otherwise simply treat the transaction as if there were no fee at all.</p>
-         *
+         * <p/>
          * <p>You might also consider adding a {@link SendRequest#feePerKb} to set the fee per kb of transaction size
          * (rounded down to the nearest kb) as that is how transactions are sorted when added to a block by miners.</p>
          */
@@ -3051,12 +3122,12 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
          * is how mining is incentivized in later years of the Bitcoin system when inflation drops. It also provides
          * a way for people to prioritize their transactions over others and is used as a way to make denial of service
          * attacks expensive.</p>
-         *
+         * <p/>
          * <p>This is a dynamic fee (in satoshis) which will be added to the transaction for each kilobyte in size
          * including the first. This is useful as as miners usually sort pending transactions by their fee per unit size
          * when choosing which transactions to add to a block. Note that, to keep this equivalent to the reference
          * client definition, a kilobyte is defined as 1000 bytes, not 1024.</p>
-         *
+         * <p/>
          * <p>You might also consider using a {@link SendRequest#fee} to set the fee added for the first kb of size.</p>
          */
         public Coin feePerKb = DEFAULT_FEE_PER_KB;
@@ -3071,7 +3142,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
          * <p>Requires that there be enough fee for a default reference client to at least relay the transaction.
          * (ie ensure the transaction will not be outright rejected by the network). Defaults to true, you should
          * only set this to false if you know what you're doing.</p>
-         *
+         * <p/>
          * <p>Note that this does not enforce certain fee rules that only apply to transactions which are larger than
          * 26,000 bytes. If you get a transaction which is that large, you should set a fee and feePerKb of at least
          * {@link Transaction#REFERENCE_DEFAULT_MIN_TX_FEE}.</p>
@@ -3107,6 +3178,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         /**
          * Specifies what to do with missing signatures left after completing this request. Default strategy is to
          * throw an exception on missing signature ({@link MissingSigsMode#THROW}).
+         *
          * @see MissingSigsMode
          */
         public MissingSigsMode missingSigsMode = MissingSigsMode.THROW;
@@ -3125,11 +3197,12 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         // Tracks if this has been passed to wallet.completeTx already: just a safety check.
         private boolean completed;
 
-        private SendRequest() {}
+        private SendRequest() {
+        }
 
         /**
          * <p>Creates a new SendRequest to the given address for the given value.</p>
-         *
+         * <p/>
          * <p>Be very careful when value is smaller than {@link Transaction#MIN_NONDUST_OUTPUT} as the transaction will
          * likely be rejected by the network in this case.</p>
          */
@@ -3144,7 +3217,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
         /**
          * <p>Creates a new SendRequest to the given pubkey for the given value.</p>
-         *
+         * <p/>
          * <p>Be careful to check the output's value is reasonable using
          * {@link TransactionOutput#getMinNonDustValue(Coin)} afterwards or you risk having the transaction
          * rejected by the network. Note that using {@link SendRequest#to(Address, Coin)} will result
@@ -3157,7 +3230,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
             return req;
         }
 
-        /** Simply wraps a pre-built incomplete transaction provided by you. */
+        /**
+         * Simply wraps a pre-built incomplete transaction provided by you.
+         */
         public static SendRequest forTx(Transaction tx) {
             SendRequest req = new SendRequest();
             req.tx = tx;
@@ -3174,7 +3249,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
             return req;
         }
 
-        /** Copy data from payment request. */
+        /**
+         * Copy data from payment request.
+         */
         public SendRequest fromPaymentDetails(PaymentDetails paymentDetails) {
             if (paymentDetails.hasMemo())
                 this.memo = paymentDetails.getMemo();
@@ -3201,32 +3278,32 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
     /**
      * <p>Statelessly creates a transaction that sends the given value to address. The change is sent to
      * {@link Wallet#getChangeAddress()}, so you must have added at least one key.</p>
-     *
+     * <p/>
      * <p>If you just want to send money quickly, you probably want
      * {@link Wallet#sendCoins(TransactionBroadcaster, Address, Coin)} instead. That will create the sending
      * transaction, commit to the wallet and broadcast it to the network all in one go. This method is lower level
      * and lets you see the proposed transaction before anything is done with it.</p>
-     *
+     * <p/>
      * <p>This is a helper method that is equivalent to using {@link Wallet.SendRequest#to(Address, Coin)}
      * followed by {@link Wallet#completeTx(Wallet.SendRequest)} and returning the requests transaction object.
      * Note that this means a fee may be automatically added if required, if you want more control over the process,
      * just do those two steps yourself.</p>
-     *
+     * <p/>
      * <p>IMPORTANT: This method does NOT update the wallet. If you call createSend again you may get two transactions
      * that spend the same coins. You have to call {@link Wallet#commitTx(Transaction)} on the created transaction to
      * prevent this, but that should only occur once the transaction has been accepted by the network. This implies
      * you cannot have more than one outstanding sending tx at once.</p>
-     *
+     * <p/>
      * <p>You MUST ensure that the value is not smaller than {@link Transaction#MIN_NONDUST_OUTPUT} or the transaction
      * will almost certainly be rejected by the network as dust.</p>
      *
      * @param address The Bitcoin address to send the money to.
-     * @param value How much currency to send.
+     * @param value   How much currency to send.
      * @return either the created Transaction or null if there are insufficient coins.
      * coins as spent until commitTx is called on the result.
      * @throws InsufficientMoneyException if the request could not be completed due to not enough balance.
-     * @throws DustySendRequested if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
-     * @throws CouldNotAdjustDownwards if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
+     * @throws DustySendRequested         if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
+     * @throws CouldNotAdjustDownwards    if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
      * @throws ExceededMaxTransactionSize if the resultant transaction is too big for Bitcoin to process (try breaking up the amounts of value)
      */
     public Transaction createSend(Address address, Coin value) throws InsufficientMoneyException {
@@ -3245,9 +3322,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      *
      * @return the Transaction that was created
      * @throws InsufficientMoneyException if the request could not be completed due to not enough balance.
-     * @throws IllegalArgumentException if you try and complete the same SendRequest twice
-     * @throws DustySendRequested if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
-     * @throws CouldNotAdjustDownwards if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
+     * @throws IllegalArgumentException   if you try and complete the same SendRequest twice
+     * @throws DustySendRequested         if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
+     * @throws CouldNotAdjustDownwards    if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
      * @throws ExceededMaxTransactionSize if the resultant transaction is too big for Bitcoin to process (try breaking up the amounts of value)
      */
     public Transaction sendCoinsOffline(SendRequest request) throws InsufficientMoneyException {
@@ -3265,25 +3342,25 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * <p>Sends coins to the given address, via the given {@link PeerGroup}. Change is returned to
      * {@link Wallet#getChangeAddress()}. Note that a fee may be automatically added if one may be required for the
      * transaction to be confirmed.</p>
-     *
+     * <p/>
      * <p>The returned object provides both the transaction, and a future that can be used to learn when the broadcast
      * is complete. Complete means, if the PeerGroup is limited to only one connection, when it was written out to
      * the socket. Otherwise when the transaction is written out and we heard it back from a different peer.</p>
-     *
+     * <p/>
      * <p>Note that the sending transaction is committed to the wallet immediately, not when the transaction is
      * successfully broadcast. This means that even if the network hasn't heard about your transaction you won't be
      * able to spend those same coins again.</p>
-     *
+     * <p/>
      * <p>You MUST ensure that value is not smaller than {@link Transaction#MIN_NONDUST_OUTPUT} or the transaction will
      * almost certainly be rejected by the network as dust.</p>
      *
      * @param broadcaster a {@link TransactionBroadcaster} to use to send the transactions out.
-     * @param to Which address to send coins to.
-     * @param value How much value to send.
+     * @param to          Which address to send coins to.
+     * @param value       How much value to send.
      * @return An object containing the transaction that was created, and a future for the broadcast of it.
      * @throws InsufficientMoneyException if the request could not be completed due to not enough balance.
-     * @throws DustySendRequested if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
-     * @throws CouldNotAdjustDownwards if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
+     * @throws DustySendRequested         if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
+     * @throws CouldNotAdjustDownwards    if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
      * @throws ExceededMaxTransactionSize if the resultant transaction is too big for Bitcoin to process (try breaking up the amounts of value)
      */
     public SendResult sendCoins(TransactionBroadcaster broadcaster, Address to, Coin value) throws InsufficientMoneyException {
@@ -3293,22 +3370,22 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     /**
      * <p>Sends coins according to the given request, via the given {@link TransactionBroadcaster}.</p>
-     *
+     * <p/>
      * <p>The returned object provides both the transaction, and a future that can be used to learn when the broadcast
      * is complete. Complete means, if the PeerGroup is limited to only one connection, when it was written out to
      * the socket. Otherwise when the transaction is written out and we heard it back from a different peer.</p>
-     *
+     * <p/>
      * <p>Note that the sending transaction is committed to the wallet immediately, not when the transaction is
      * successfully broadcast. This means that even if the network hasn't heard about your transaction you won't be
      * able to spend those same coins again.</p>
      *
      * @param broadcaster the target to use for broadcast.
-     * @param request the SendRequest that describes what to do, get one using static methods on SendRequest itself.
+     * @param request     the SendRequest that describes what to do, get one using static methods on SendRequest itself.
      * @return An object containing the transaction that was created, and a future for the broadcast of it.
      * @throws InsufficientMoneyException if the request could not be completed due to not enough balance.
-     * @throws IllegalArgumentException if you try and complete the same SendRequest twice
-     * @throws DustySendRequested if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
-     * @throws CouldNotAdjustDownwards if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
+     * @throws IllegalArgumentException   if you try and complete the same SendRequest twice
+     * @throws DustySendRequested         if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
+     * @throws CouldNotAdjustDownwards    if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
      * @throws ExceededMaxTransactionSize if the resultant transaction is too big for Bitcoin to process (try breaking up the amounts of value)
      */
     public SendResult sendCoins(TransactionBroadcaster broadcaster, SendRequest request) throws InsufficientMoneyException {
@@ -3336,11 +3413,11 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      *
      * @param request the SendRequest that describes what to do, get one using static methods on SendRequest itself.
      * @return An object containing the transaction that was created, and a future for the broadcast of it.
-     * @throws IllegalStateException if no transaction broadcaster has been configured.
+     * @throws IllegalStateException      if no transaction broadcaster has been configured.
      * @throws InsufficientMoneyException if the request could not be completed due to not enough balance.
-     * @throws IllegalArgumentException if you try and complete the same SendRequest twice
-     * @throws DustySendRequested if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
-     * @throws CouldNotAdjustDownwards if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
+     * @throws IllegalArgumentException   if you try and complete the same SendRequest twice
+     * @throws DustySendRequested         if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
+     * @throws CouldNotAdjustDownwards    if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
      * @throws ExceededMaxTransactionSize if the resultant transaction is too big for Bitcoin to process (try breaking up the amounts of value)
      */
     public SendResult sendCoins(SendRequest request) throws InsufficientMoneyException {
@@ -3357,9 +3434,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      *
      * @return The {@link Transaction} that was created or null if there was insufficient balance to send the coins.
      * @throws InsufficientMoneyException if the request could not be completed due to not enough balance.
-     * @throws IllegalArgumentException if you try and complete the same SendRequest twice
-     * @throws DustySendRequested if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
-     * @throws CouldNotAdjustDownwards if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
+     * @throws IllegalArgumentException   if you try and complete the same SendRequest twice
+     * @throws DustySendRequested         if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
+     * @throws CouldNotAdjustDownwards    if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
      * @throws ExceededMaxTransactionSize if the resultant transaction is too big for Bitcoin to process (try breaking up the amounts of value)
      */
     public Transaction sendCoins(Peer peer, SendRequest request) throws InsufficientMoneyException {
@@ -3368,17 +3445,25 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         return tx;
     }
 
-    public static class CompletionException extends RuntimeException {}
-    public static class DustySendRequested extends CompletionException {}
-    public static class MultipleOpReturnRequested extends CompletionException {}
+    public static class CompletionException extends RuntimeException {
+    }
+
+    public static class DustySendRequested extends CompletionException {
+    }
+
+    public static class MultipleOpReturnRequested extends CompletionException {
+    }
 
     /**
      * Thrown when we were trying to empty the wallet, and the total amount of money we were trying to empty after
      * being reduced for the fee was smaller than the min payment. Note that the missing field will be null in this
      * case.
      */
-    public static class CouldNotAdjustDownwards extends CompletionException {}
-    public static class ExceededMaxTransactionSize extends CompletionException {}
+    public static class CouldNotAdjustDownwards extends CompletionException {
+    }
+
+    public static class ExceededMaxTransactionSize extends CompletionException {
+    }
 
     /**
      * Given a spend request containing an incomplete transaction, makes it valid by adding outputs and signed inputs
@@ -3386,9 +3471,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      *
      * @param req a SendRequest that contains the incomplete transaction and details for how to make it valid.
      * @throws InsufficientMoneyException if the request could not be completed due to not enough balance.
-     * @throws IllegalArgumentException if you try and complete the same SendRequest twice
-     * @throws DustySendRequested if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
-     * @throws CouldNotAdjustDownwards if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
+     * @throws IllegalArgumentException   if you try and complete the same SendRequest twice
+     * @throws DustySendRequested         if the resultant transaction would violate the dust rules (an output that's too small to be worthwhile)
+     * @throws CouldNotAdjustDownwards    if emptying the wallet was requested and the output can't be shrunk for fees without violating a protocol rule.
      * @throws ExceededMaxTransactionSize if the resultant transaction is too big for Bitcoin to process (try breaking up the amounts of value)
      */
     public void completeTx(SendRequest req) throws InsufficientMoneyException {
@@ -3574,7 +3659,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Reduce the value of the first output of a transaction to pay the given feePerKb as appropriate for its size. */
+    /**
+     * Reduce the value of the first output of a transaction to pay the given feePerKb as appropriate for its size.
+     */
     private boolean adjustOutputDownwardsForFee(Transaction tx, CoinSelection coinSelection, Coin baseFee, Coin feePerKb) {
         TransactionOutput output = tx.getOutput(0);
         // Check if we need additional fee due to the transaction's size
@@ -3612,7 +3699,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Returns the {@link CoinSelector} object which controls which outputs can be spent by this wallet. */
+    /**
+     * Returns the {@link CoinSelector} object which controls which outputs can be spent by this wallet.
+     */
     public CoinSelector getCoinSelector() {
         lock.lock();
         try {
@@ -3648,7 +3737,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     //endregion
 
-    /******************************************************************************************************************/
+    /**
+     * **************************************************************************************************************
+     */
 
     private static class TxOffsetPair implements Comparable<TxOffsetPair> {
         public final Transaction tx;
@@ -3659,7 +3750,8 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
             this.offset = offset;
         }
 
-        @Override public int compareTo(TxOffsetPair o) {
+        @Override
+        public int compareTo(TxOffsetPair o) {
             return Ints.compare(offset, o.offset);
         }
     }
@@ -3668,11 +3760,11 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     /**
      * <p>Don't call this directly. It's not intended for API users.</p>
-     *
+     * <p/>
      * <p>Called by the {@link BlockChain} when the best chain (representing total work done) has changed. This can
      * cause the number of confirmations of a transaction to go higher, lower, drop to zero and can even result in
      * a transaction going dead (will never confirm) due to a double spend.</p>
-     *
+     * <p/>
      * <p>The oldBlocks/newBlocks lists are ordered height-wise from top first to bottom last.</p>
      */
     @Override
@@ -3888,17 +3980,17 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * false-positive rate. See the docs for {@link BloomFilter} for a brief explanation of anonymity when using filters.
      */
     public BloomFilter getBloomFilter(double falsePositiveRate) {
-        return getBloomFilter(getBloomFilterElementCount(), falsePositiveRate, (long)(Math.random()*Long.MAX_VALUE));
+        return getBloomFilter(getBloomFilterElementCount(), falsePositiveRate, (long) (Math.random() * Long.MAX_VALUE));
     }
 
     /**
      * <p>Gets a bloom filter that contains all of the public keys from this wallet, and which will provide the given
      * false-positive rate if it has size elements. Keep in mind that you will get 2 elements in the bloom filter for
      * each key in the wallet, for the public key and the hash of the public key (address form).</p>
-     * 
+     * <p/>
      * <p>This is used to generate a BloomFilter which can be {@link BloomFilter#merge(BloomFilter)}d with another.
      * It could also be used if you have a specific target for the filter's size.</p>
-     * 
+     * <p/>
      * <p>See the docs for {@link BloomFilter(int, double)} for a brief explanation of anonymity when using bloom
      * filters.</p>
      */
@@ -4028,7 +4120,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         }
     }
 
-    /** Returns a snapshot of all registered extension objects. The extensions themselves are not copied. */
+    /**
+     * Returns a snapshot of all registered extension objects. The extensions themselves are not copied.
+     */
     public Map<String, WalletExtension> getExtensions() {
         lock.lock();
         try {
@@ -4046,7 +4140,9 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     //endregion
 
-    /******************************************************************************************************************/
+    /**
+     * **************************************************************************************************************
+     */
 
     private static class FeeCalculation {
         public CoinSelection bestCoinSelection;
@@ -4143,7 +4239,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
                     // This solution definitely fits in category 3
                     isCategory3 = true;
                     additionalValueForNextCategory = Transaction.REFERENCE_DEFAULT_MIN_TX_FEE.add(
-                                                     Transaction.MIN_NONDUST_OUTPUT.add(Coin.SATOSHI));
+                            Transaction.MIN_NONDUST_OUTPUT.add(Coin.SATOSHI));
                 } else {
                     size += changeOutput.bitcoinSerialize().length + VarInt.sizeOf(req.tx.getOutputs().size()) - VarInt.sizeOf(req.tx.getOutputs().size() - 1);
                     // This solution is either category 1 or 2
@@ -4169,7 +4265,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
             // include things we haven't added yet like input signatures/scripts or the change output.
             size += req.tx.bitcoinSerialize().length;
             size += estimateBytesForSigning(selection);
-            if (size/1000 > lastCalculatedSize/1000 && req.feePerKb.signum() > 0) {
+            if (size / 1000 > lastCalculatedSize / 1000 && req.feePerKb.signum() > 0) {
                 lastCalculatedSize = size;
                 // We need more fees anyway, just try again with the same additional value
                 additionalValueForNextCategory = additionalValueSelected;
@@ -4289,7 +4385,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * sending transactions to the Bitcoin network by default. Some sendCoins methods let you specify a broadcaster
      * explicitly, in that case, they don't use this broadcaster. If null is specified then the wallet won't attempt
      * to broadcast transactions itself.</p>
-     *
+     * <p/>
      * <p>You don't normally need to call this. A {@link PeerGroup} will automatically set itself as the wallets
      * broadcaster when you use {@link PeerGroup#addWallet(Wallet)}. A wallet can use the broadcaster when you ask
      * it to send money, but in future also at other times to implement various features that may require asynchronous
@@ -4349,7 +4445,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * as the argument. Once set up, calling {@link #doMaintenance(org.spongycastle.crypto.params.KeyParameter, boolean)}
      * will create and possibly send rotation transactions: but it won't be done automatically (because you might have
      * to ask for the users password).</p>
-     *
+     * <p/>
      * <p>The given time cannot be in the future.</p>
      */
     public void setKeyRotationTime(long unixTimeSeconds) {
@@ -4361,13 +4457,17 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
         saveNow();
     }
 
-    /** Returns whether the keys creation time is before the key rotation time, if one was set. */
+    /**
+     * Returns whether the keys creation time is before the key rotation time, if one was set.
+     */
     public boolean isKeyRotating(ECKey key) {
         long time = vKeyRotationTimestamp;
         return time != 0 && key.getCreationTimeSeconds() < time;
     }
 
-    /** @deprecated Renamed to doMaintenance */
+    /**
+     * @deprecated Renamed to doMaintenance
+     */
     @Deprecated
     public ListenableFuture<List<Transaction>> maybeDoMaintenance(@Nullable KeyParameter aesKey, boolean andSend) throws DeterministicUpgradeRequiresPassword {
         return doMaintenance(aesKey, andSend);
@@ -4382,7 +4482,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * which don't require making transactions - these will happen automatically unless the password is required
      * in which case an exception will be thrown.
      *
-     * @param aesKey the users password, if any.
+     * @param aesKey      the users password, if any.
      * @param signAndSend if true, send the transactions via the tx broadcaster and return them, if false just return them.
      * @return A list of transactions that the wallet just made/will make for internal maintenance. Might be empty.
      * @throws org.bitcoinj.wallet.DeterministicUpgradeRequiresPassword if key rotation requires the users password.
