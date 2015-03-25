@@ -5,7 +5,8 @@ Usage: wallet-tool --flags action-name
 
 >>> ACTIONS
   dump                 Loads and prints the given wallet in textual form to stdout. Private keys are only printed
-                       if --dump-privkeys is specified.
+                       if --dump-privkeys is specified. Complete transactions are dumped as hex if --dump-tx-hex is
+                       specified (similar to `bitcoin-cli getrawtransaction TX_ID`).
   raw-dump             Prints the wallet as a raw protobuf with no parsing or sanity checking applied.
   create               Makes a new wallet in the file specified by --wallet.
                        Will complain and require --force if the wallet already exists.

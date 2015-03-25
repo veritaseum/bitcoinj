@@ -1328,7 +1328,7 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
             throw new UnreadableWalletException("Could not open file", e);
         }
     }
-    
+
     public boolean isConsistent() {
         lock.lock();
         try {
@@ -2537,14 +2537,24 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
 
     /**
+     * Shorthand for {@link #toString(boolean, boolean, boolean, boolean, AbstractBlockChain)}(includePrivateKeys,
+     * includeTransactions, includeExtensions, false, chain).
+     */
+    public String toString(boolean includePrivateKeys, boolean includeTransactions, boolean includeExtensions,
+                           @Nullable AbstractBlockChain chain) {
+        return toString(includePrivateKeys, includeTransactions, includeExtensions, false, chain);
+    }
+
+    /**
      * Formats the wallet as a human readable piece of text. Intended for debugging, the format is not meant to be
      * stable or human readable.
      * @param includePrivateKeys Whether raw private key data should be included.
      * @param includeTransactions Whether to print transaction data.
      * @param includeExtensions Whether to print extension data.
+     * @param dumpTxHex Whether to dump each complete transaction as hex.
      * @param chain If set, will be used to estimate lock times for block timelocked transactions.
      */
-    public String toString(boolean includePrivateKeys, boolean includeTransactions, boolean includeExtensions,
+    public String toString(boolean includePrivateKeys, boolean includeTransactions, boolean includeExtensions, boolean dumpTxHex,
                            @Nullable AbstractBlockChain chain) {
         lock.lock();
         try {
@@ -2582,19 +2592,19 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
                 // Print the transactions themselves
                 if (pending.size() > 0) {
                     builder.append("\n>>> PENDING:\n");
-                    toStringHelper(builder, pending, chain, Transaction.SORT_TX_BY_UPDATE_TIME);
+                    toStringHelper(builder, pending, chain, Transaction.SORT_TX_BY_UPDATE_TIME, dumpTxHex);
                 }
                 if (unspent.size() > 0) {
                     builder.append("\n>>> UNSPENT:\n");
-                    toStringHelper(builder, unspent, chain, Transaction.SORT_TX_BY_HEIGHT);
+                    toStringHelper(builder, unspent, chain, Transaction.SORT_TX_BY_HEIGHT, dumpTxHex);
                 }
                 if (spent.size() > 0) {
                     builder.append("\n>>> SPENT:\n");
-                    toStringHelper(builder, spent, chain, Transaction.SORT_TX_BY_HEIGHT);
+                    toStringHelper(builder, spent, chain, Transaction.SORT_TX_BY_HEIGHT, dumpTxHex);
                 }
                 if (dead.size() > 0) {
                     builder.append("\n>>> DEAD:\n");
-                    toStringHelper(builder, dead, chain, Transaction.SORT_TX_BY_UPDATE_TIME);
+                    toStringHelper(builder, dead, chain, Transaction.SORT_TX_BY_UPDATE_TIME, dumpTxHex);
                 }
             }
             if (includeExtensions && extensions.size() > 0) {
@@ -2611,6 +2621,11 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
 
     private void toStringHelper(StringBuilder builder, Map<Sha256Hash, Transaction> transactionMap,
                                 @Nullable AbstractBlockChain chain, @Nullable Comparator<Transaction> sortOrder) {
+        toStringHelper(builder, transactionMap, chain, sortOrder, false);
+    }
+
+    private void toStringHelper(StringBuilder builder, Map<Sha256Hash, Transaction> transactionMap,
+                                @Nullable AbstractBlockChain chain, @Nullable Comparator<Transaction> sortOrder, boolean dumpTxHex) {
         checkState(lock.isHeldByCurrentThread());
 
         final Collection<Transaction> txns;
@@ -2634,6 +2649,13 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
                 // Ignore and don't print this line.
             }
             builder.append(tx.toString(chain));
+            if (dumpTxHex) {
+                builder.append("  ");
+                builder.append(tx.getHashAsString());
+                builder.append(" hex: ");
+                builder.append(Utils.HEX.encode(tx.bitcoinSerialize()));
+                builder.append("\n");
+            }
         }
     }
 
@@ -3895,10 +3917,10 @@ public class Wallet extends BaseTaggableObject implements Serializable, BlockCha
      * <p>Gets a bloom filter that contains all of the public keys from this wallet, and which will provide the given
      * false-positive rate if it has size elements. Keep in mind that you will get 2 elements in the bloom filter for
      * each key in the wallet, for the public key and the hash of the public key (address form).</p>
-     * 
+     *
      * <p>This is used to generate a BloomFilter which can be {@link BloomFilter#merge(BloomFilter)}d with another.
      * It could also be used if you have a specific target for the filter's size.</p>
-     * 
+     *
      * <p>See the docs for {@link BloomFilter(int, double)} for a brief explanation of anonymity when using bloom
      * filters.</p>
      */

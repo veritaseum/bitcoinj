@@ -224,6 +224,7 @@ public class WalletTool {
         parser.accepts("no-pki");
         parser.accepts("tor");
         parser.accepts("dump-privkeys");
+        parser.accepts("dump-tx-hex");
         options = parser.parse(args);
 
         final String HELP_TEXT = Resources.toString(WalletTool.class.getResource("wallet-tool-help.txt"), Charsets.UTF_8);
@@ -1062,6 +1063,6 @@ public class WalletTool {
         // there just for the dump case.
         if (chainFileName.exists())
             setup();
-        System.out.println(wallet.toString(options.has("dump-privkeys"), true, true, chain));
+        System.out.println(wallet.toString(options.has("dump-privkeys"), true, true, options.has("dump-tx-hex"), chain));
     }
 }
