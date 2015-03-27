@@ -1,12 +1,12 @@
 /**
  * Copyright 2013 Google Inc.
- *
+ * <p/>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p/>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p/>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -34,9 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.*;
 
 /**
  * An SPVBlockStore holds a limited number of block headers in a memory mapped ring buffer. With such a store, you
@@ -180,7 +179,9 @@ public class SPVBlockStore implements BlockStore {
             block.serializeCompact(buffer);
             setRingCursor(buffer, buffer.position());
             blockCache.put(hash, block);
-        } finally { lock.unlock(); }
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -225,7 +226,9 @@ public class SPVBlockStore implements BlockStore {
             return null;
         } catch (ProtocolException e) {
             throw new RuntimeException(e);  // Cannot happen.
-        } finally { lock.unlock(); }
+        } finally {
+            lock.unlock();
+        }
     }
 
     protected StoredBlock lastChainHead = null;
@@ -248,7 +251,9 @@ public class SPVBlockStore implements BlockStore {
                 lastChainHead = block;
             }
             return lastChainHead;
-        } finally { lock.unlock(); }
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -262,18 +267,50 @@ public class SPVBlockStore implements BlockStore {
             byte[] headHash = chainHead.getHeader().getHash().getBytes();
             buffer.position(8);
             buffer.put(headHash);
-        } finally { lock.unlock(); }
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
     public void close() throws BlockStoreException {
         try {
             buffer.force();
+            if(runOnWindows()) {
+                log.info("Unmapping SPV file...");
+                closeDirectBuffer(buffer);
+            }
             buffer = null;  // Allow it to be GCd and the underlying file mapping to go away.
             randomAccessFile.close();
         } catch (IOException e) {
             throw new BlockStoreException(e);
         }
+    }
+
+    /**
+     * Unmaps a file from memory
+     * http://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
+     * @param cb
+     */
+    private static void closeDirectBuffer(ByteBuffer cb) {
+        if (!cb.isDirect()) return;
+
+        // we could use this type cast and call functions without reflection code,
+        // but static import from sun.* package is risky for non-SUN virtual machine.
+        //try { ((sun.nio.ch.DirectBuffer)cb).cleaner().clean(); } catch (Exception ex) { }
+        try {
+            Method cleaner = cb.getClass().getMethod("cleaner");
+            cleaner.setAccessible(true);
+            Method clean = Class.forName("sun.misc.Cleaner").getMethod("clean");
+            clean.setAccessible(true);
+            clean.invoke(cleaner.invoke(cb));
+        } catch(Exception ex) { }
+        cb = null;
+    }
+
+    private static boolean runOnWindows() {
+        String osName = System.getProperty("os.name").toLowerCase();
+        return osName.indexOf("win") >= 0;
     }
 
     protected static final int RECORD_SIZE = 32 /* hash */ + StoredBlock.COMPACT_SERIALIZED_SIZE;
